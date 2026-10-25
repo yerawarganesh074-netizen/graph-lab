@@ -1,0 +1,1021 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Graph Lab: interactive graph theory case studies on social networks, the three utilities problem, PageRank and shortest-path routing.">
+<title>Graph Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout concept: a drafting-table workbench. Graph-paper stage on the left, readouts on the right, theory underneath. */
+:root{
+  --bg:#EDF1F4; --surface:#FFFFFF; --ink:#12202C; --muted:#55666F; --line:#CBD6DD; --grid:#E2E9ED; --edge:#7C8E9A;
+  --accent:#0A6C8B; --accent-soft:#DCEEF4; --on-accent:#FFFFFF;
+  --good:#1F7A4D; --warn:#A86400; --bad:#B3321F;
+  --c1:#0A6C8B; --c2:#B3541E; --c3:#6B4FB3; --c4:#2F7D4F; --c5:#B0357A; --c6:#7A7A1E;
+  --f-display:'Familjen Grotesk','Segoe UI',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1620; --surface:#122030; --ink:#E4EDF3; --muted:#93A6B4; --line:#2A4157; --grid:#183044; --edge:#6C8396;
+    --accent:#4CC3E0; --accent-soft:#12394A; --on-accent:#05222B;
+    --good:#5CC992; --warn:#E3A63E; --bad:#FF7A66;
+    --c1:#4CC3E0; --c2:#F0955E; --c3:#A58BE8; --c4:#5CC992; --c5:#F07FB8; --c6:#CFCF5E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1620; --surface:#122030; --ink:#E4EDF3; --muted:#93A6B4; --line:#2A4157; --grid:#183044; --edge:#6C8396;
+  --accent:#4CC3E0; --accent-soft:#12394A; --on-accent:#05222B;
+  --good:#5CC992; --warn:#E3A63E; --bad:#FF7A66;
+  --c1:#4CC3E0; --c2:#F0955E; --c3:#A58BE8; --c4:#5CC992; --c5:#F07FB8; --c6:#CFCF5E;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-block:28px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3,h4{font-family:var(--f-display);margin:0;text-wrap:balance}
+p{margin:0}
+.mono-label{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.top{padding-bottom:18px}
+.top h1{font-weight:700;font-size:clamp(2.4rem,6vw,3.6rem);line-height:1;letter-spacing:-.02em;margin:8px 0 12px}
+.lede{max-width:58ch;color:var(--muted);font-size:16px}
+
+.tabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;margin-bottom:20px}
+.tabs button{font-family:var(--f-display);font-weight:600;font-size:16px;padding:10px 18px;background:none;border:0;
+  border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.model{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 28px;margin:0 0 20px}
+.model dt{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.model dd{margin:2px 0 0}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.seg{display:inline-flex}
+.seg .btn+.btn{margin-left:-1px}
+.seg .btn:first-child{border-radius:4px 0 0 4px}
+.seg .btn:last-child{border-radius:0 4px 4px 0}
+.btn{font:inherit;font-size:13.5px;font-weight:500;padding:6px 12px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink);border-radius:4px;cursor:pointer;line-height:1.3}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer}
+.rng{display:inline-flex;align-items:center;gap:8px;font-size:13.5px}
+.rng input{width:120px;accent-color:var(--accent)}
+.rng output{font-family:var(--f-mono);min-width:3.2ch}
+.stage svg{display:block;width:100%;height:auto;aspect-ratio:600/420;touch-action:none;user-select:none;-webkit-user-select:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:30px 30px}
+.hint{padding:9px 12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+
+/* svg parts */
+.edge{fill:none;stroke-width:2.2;pointer-events:none}
+.e-def{stroke:var(--edge)}
+.e-out{stroke:var(--accent);stroke-width:2.8}
+.e-in{stroke:var(--warn);stroke-width:2.8}
+.e-hl{stroke:var(--good);stroke-width:4.2}
+.e-bad{stroke:var(--bad);stroke-dasharray:6 5}
+.mk{stroke:none}.mk-def{fill:var(--edge)}.mk-out{fill:var(--accent)}.mk-in{fill:var(--warn)}.mk-hl{fill:var(--good)}.mk-bad{fill:var(--bad)}
+.hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke}
+.clk .hit{cursor:pointer}
+.elabel{font:600 13.5px var(--f-mono);fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.node{cursor:grab;outline:none}
+.node:active{cursor:grabbing}
+.body{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.node:focus-visible .body{stroke:var(--accent);stroke-width:4}
+.ring{fill:none;stroke-width:3.5;pointer-events:none}
+.ring-sel,.ring-src{stroke:var(--accent)}
+.ring-pend{stroke:var(--warn);stroke-dasharray:5 4}
+.ring-onpath,.ring-dst{stroke:var(--good)}
+.ring-cur{stroke:var(--warn)}
+.nlabel{font:600 15px var(--f-body);fill:var(--ink);text-anchor:middle;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.ntext{font:600 14px var(--f-mono);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.xmark circle{fill:var(--surface);stroke:var(--bad);stroke-width:2.5}
+.xmark path{stroke:var(--bad);stroke-width:2.5;stroke-linecap:round}
+
+/* side panel */
+.side{min-width:0}
+.sec{padding:14px 0;border-top:1px solid var(--line)}
+.sec:first-child{border-top:0;padding-top:0}
+.sec h4{font-size:12px;font-family:var(--f-mono);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.sec h4 small{text-transform:none;letter-spacing:0;font-size:12px}
+.who{font-size:30px;font-weight:700;letter-spacing:-.01em;line-height:1.1;margin:2px 0 10px}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stats3 b{display:block;font-family:var(--f-display);font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stats3 span{font-size:12.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;padding:2px 11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.none{color:var(--muted);font-size:13.5px}
+.sug{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sug li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13.5px;color:var(--muted)}
+select{font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
+.pathline{margin-top:8px;font-size:14.5px}
+.pathline b{font-weight:600}
+.note{padding:10px 12px;background:var(--accent-soft);border-radius:4px;font-size:14px}
+.big{font-family:var(--f-display);font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kv span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+
+/* tables and lists */
+.scroll{overflow-x:auto}
+.tbl{border-collapse:collapse;width:100%;font-family:var(--f-mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.tbl th{font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:11px;text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:5px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl tr.cur td{background:var(--accent-soft)}
+.tbl tr.done td:first-child{font-weight:600}
+.tbl tr.tot td{border-top:1px solid var(--ink);font-weight:600}
+.rank{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.rank li{display:grid;grid-template-columns:78px minmax(0,1fr) 50px 42px;gap:8px;align-items:center;font-size:13.5px}
+.rank .bar{height:8px;background:var(--grid);border-radius:2px;overflow:hidden}
+.rank .bar i{display:block;height:100%;background:var(--accent)}
+.rank .rv{font-family:var(--f-mono);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.rank .tg{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.mx{border-collapse:collapse;font-family:var(--f-mono);font-size:12px}
+.mx th{font-weight:500;color:var(--muted);padding:3px 5px}
+.mx td{width:30px;height:26px;text-align:center;border:1px solid var(--grid);color:var(--muted)}
+.mx td.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.mx tr.sel th{color:var(--accent);font-weight:600}
+
+.lower{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:28px;margin-top:28px;padding-top:24px;border-top:1px solid var(--line)}
+.lower>div{min-width:0}
+.lower h3{font-size:19px;margin-bottom:10px}
+.lower p{font-size:14px;color:var(--muted);margin-bottom:10px;max-width:62ch}
+.lower ol{margin:0;padding-left:20px;display:grid;gap:8px;max-width:62ch;font-size:14.5px}
+.formula{font-family:var(--f-mono);font-size:13px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);overflow-x:auto;margin:0 0 10px}
+.foot{margin-top:36px;font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="top">
+    <p class="mono-label">Discrete Mathematics · graph theory case studies</p>
+    <h1>Graph Lab</h1>
+    <p class="lede">Four everyday systems, modelled as graphs you can touch. Drag the nodes, change the edges and watch the algorithms answer.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Case studies">
+    <button role="tab" id="tb-social" data-tab="social" aria-selected="true">Social network</button>
+    <button role="tab" id="tb-utilities" data-tab="utilities" aria-selected="false">Three utilities</button>
+    <button role="tab" id="tb-web" data-tab="web" aria-selected="false">Web graph</button>
+    <button role="tab" id="tb-maps" data-tab="maps" aria-selected="false">Route finder</button>
+  </nav>
+
+  <!-- 1. SOCIAL -->
+  <section id="tab-social" class="tab" role="tabpanel" aria-labelledby="tb-social">
+    <dl class="model">
+      <div><dt>Vertices</dt><dd>Users of the platform.</dd></div>
+      <div><dt>Edges</dt><dd>A directed edge u → v means "u follows v". Two opposite edges make a friendship.</dd></div>
+      <div><dt>Questions it answers</dt><dd>Who is influential (in-degree), who can reach whom (BFS), which groups are closed (strongly connected components), who to suggest (walks of length 2).</dd></div>
+    </dl>
+    <div class="grid">
+      <div class="stage">
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="Mode">
+            <button class="btn" data-act="soc-mode" data-m="explore" aria-pressed="true">Explore</button>
+            <button class="btn" data-act="soc-mode" data-m="edit" aria-pressed="false">Edit follows</button>
+          </div>
+          <label class="chk"><input type="checkbox" id="soc-scc" data-chg="soc-scc" checked> Colour communities</label>
+          <button class="btn" data-act="soc-reset">Reset</button>
+        </div>
+        <svg id="soc-svg" viewBox="0 0 600 420" role="group" aria-label="Social network graph"></svg>
+        <p class="hint" id="soc-hint"></p>
+      </div>
+      <div class="side" id="soc-side"></div>
+    </div>
+    <div class="lower" id="soc-lower"></div>
+  </section>
+
+  <!-- 2. UTILITIES -->
+  <section id="tab-utilities" class="tab" role="tabpanel" aria-labelledby="tb-utilities" hidden>
+    <dl class="model">
+      <div><dt>Vertices</dt><dd>Three houses and three utilities: water, gas, electricity.</dd></div>
+      <div><dt>Edges</dt><dd>One pipe or cable from every house to every utility. This is the complete bipartite graph K<sub>3,3</sub>.</dd></div>
+      <div><dt>Question</dt><dd>Can all nine lines be drawn on a flat plane without any two crossing? In graph terms: is K<sub>3,3</sub> planar?</dd></div>
+    </dl>
+    <div class="grid">
+      <div class="stage">
+        <div class="toolbar">
+          <button class="btn" data-act="ut-all">Connect all 9</button>
+          <button class="btn" data-act="ut-drop">Drop one line</button>
+          <button class="btn" data-act="ut-auto">Auto-arrange</button>
+          <button class="btn" data-act="ut-layout">Reset layout</button>
+          <button class="btn" data-act="ut-clear">Clear</button>
+        </div>
+        <svg id="ut-svg" class="clk" viewBox="0 0 600 420" role="group" aria-label="Three houses and three utilities"></svg>
+        <p class="hint">Click a house, then a utility, to add or remove a line. Click a line to remove it. Drag any node to untangle.</p>
+      </div>
+      <div class="side" id="ut-side"></div>
+    </div>
+    <div class="lower" id="ut-lower"></div>
+  </section>
+
+  <!-- 3. WEB -->
+  <section id="tab-web" class="tab" role="tabpanel" aria-labelledby="tb-web" hidden>
+    <dl class="model">
+      <div><dt>Vertices</dt><dd>Web pages. Real web graphs have billions, so they are stored as adjacency lists.</dd></div>
+      <div><dt>Edges</dt><dd>A hyperlink from page p to page q is the directed edge p → q. A link is a vote for the page it points to.</dd></div>
+      <div><dt>Question</dt><dd>Which pages matter? PageRank scores a page by the scores of the pages linking to it, and the scores settle after repeated iteration.</dd></div>
+    </dl>
+    <div class="grid">
+      <div class="stage">
+        <div class="toolbar">
+          <button class="btn" data-act="web-step">Step</button>
+          <button class="btn" data-act="web-run">Run to convergence</button>
+          <button class="btn" data-act="web-restart">Restart</button>
+          <label class="rng" for="web-d">Damping d <input type="range" id="web-d" data-inp="web-d" min="0.5" max="0.95" step="0.05" value="0.85"><output id="web-dv">0.85</output></label>
+          <div class="seg" role="group" aria-label="Mode">
+            <button class="btn" data-act="web-mode" data-m="select" aria-pressed="true">Inspect</button>
+            <button class="btn" data-act="web-mode" data-m="edit" aria-pressed="false">Edit links</button>
+          </div>
+          <button class="btn" data-act="web-reset">Reset graph</button>
+        </div>
+        <svg id="web-svg" viewBox="0 0 600 420" role="group" aria-label="Web graph with PageRank"></svg>
+        <p class="hint" id="web-hint"></p>
+      </div>
+      <div class="side" id="web-side"></div>
+    </div>
+    <div class="lower" id="web-lower"></div>
+  </section>
+
+  <!-- 4. MAPS -->
+  <section id="tab-maps" class="tab" role="tabpanel" aria-labelledby="tb-maps" hidden>
+    <dl class="model">
+      <div><dt>Vertices</dt><dd>Places and intersections.</dd></div>
+      <div><dt>Edges</dt><dd>Road segments weighted by distance or travel time. A two-way road is a pair of directed edges; a one-way road is a single arrow.</dd></div>
+      <div><dt>Question</dt><dd>What is the cheapest route between two places? Dijkstra's algorithm settles the closest unsettled vertex one at a time.</dd></div>
+    </dl>
+    <div class="grid">
+      <div class="stage">
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="Edge weight">
+            <button class="btn" data-act="mp-metric" data-m="km" aria-pressed="true">Distance (km)</button>
+            <button class="btn" data-act="mp-metric" data-m="min" aria-pressed="false">Time (min)</button>
+          </div>
+          <button class="btn" data-act="mp-back" aria-label="Previous step">&larr; Back</button>
+          <button class="btn" data-act="mp-step">Step &rarr;</button>
+          <button class="btn" data-act="mp-all">Run all</button>
+          <button class="btn" data-act="mp-restart">Restart</button>
+          <button class="btn" data-act="mp-open">Reopen roads</button>
+        </div>
+        <svg id="mp-svg" class="clk" viewBox="0 0 600 420" role="group" aria-label="Road network around Pune"></svg>
+        <p class="hint">Click a road to close it and watch the route change. The map is a schematic of Pune with rounded, illustrative distances and times, not real map data.</p>
+      </div>
+      <div class="side" id="mp-side"></div>
+    </div>
+    <div class="lower" id="mp-lower"></div>
+  </section>
+
+  <p class="foot">Graph Lab runs entirely in your browser. Nothing is sent anywhere.</p>
+</div>
+
+<script>
+/* Pure graph algorithms. No DOM access. */
+function outOf(n, edges) {
+  const o = Array.from({ length: n }, () => []);
+  edges.forEach(e => { if (!o[e.from].includes(e.to)) o[e.from].push(e.to); });
+  return o;
+}
+function inOf(n, edges) {
+  const o = Array.from({ length: n }, () => []);
+  const seen = new Set();
+  edges.forEach(e => {
+    const k = e.from + '>' + e.to;
+    if (!seen.has(k)) { seen.add(k); o[e.to].push(e.from); }
+  });
+  return o;
+}
+
+/* Tarjan strongly connected components */
+function scc(n, out) {
+  let idx = 0, count = 0;
+  const index = Array(n).fill(-1), low = Array(n).fill(0), on = Array(n).fill(false);
+  const st = [], comp = Array(n).fill(-1);
+  function dfs(v) {
+    index[v] = low[v] = idx++;
+    st.push(v); on[v] = true;
+    for (const w of out[v]) {
+      if (index[w] < 0) { dfs(w); low[v] = Math.min(low[v], low[w]); }
+      else if (on[w]) low[v] = Math.min(low[v], index[w]);
+    }
+    if (low[v] === index[v]) {
+      let w;
+      do { w = st.pop(); on[w] = false; comp[w] = count; } while (w !== v);
+      count++;
+    }
+  }
+  for (let v = 0; v < n; v++) if (index[v] < 0) dfs(v);
+  return { comp, count };
+}
+
+/* nodes reachable from the sources following adjacency lists */
+function reach(n, adj, sources) {
+  const seen = Array(n).fill(false);
+  const q = [];
+  sources.forEach(s => { if (!seen[s]) { seen[s] = true; q.push(s); } });
+  while (q.length) {
+    const u = q.shift();
+    for (const v of adj[u]) if (!seen[v]) { seen[v] = true; q.push(v); }
+  }
+  return seen;
+}
+
+/* shortest hop path (breadth-first search) */
+function bfsPath(n, out, s, t) {
+  const prev = Array(n).fill(-2);
+  prev[s] = -1;
+  const q = [s];
+  while (q.length) {
+    const u = q.shift();
+    if (u === t) break;
+    for (const v of out[u]) if (prev[v] === -2) { prev[v] = u; q.push(v); }
+  }
+  if (prev[t] === -2) return null;
+  const p = [];
+  for (let v = t; v !== -1; v = prev[v]) p.push(v);
+  return p.reverse();
+}
+
+/* one PageRank iteration; pages with no out-links share their rank evenly */
+function prStep(n, out, pr, d) {
+  const next = Array(n).fill((1 - d) / n);
+  let dang = 0;
+  for (let i = 0; i < n; i++) {
+    if (out[i].length === 0) dang += pr[i];
+    else {
+      const s = pr[i] / out[i].length;
+      for (const j of out[i]) next[j] += d * s;
+    }
+  }
+  for (let i = 0; i < n; i++) next[i] += d * dang / n;
+  return next;
+}
+function prConverge(n, out, d) {
+  let pr = Array(n).fill(1 / n), it = 0, delta = 1;
+  while (it < 500 && delta > 1e-10) {
+    const nx = prStep(n, out, pr, d);
+    delta = 0;
+    for (let i = 0; i < n; i++) delta += Math.abs(nx[i] - pr[i]);
+    pr = nx; it++;
+  }
+  return { pr, iter: it, delta };
+}
+
+/* Dijkstra, returning a snapshot after every settled node.
+   adj[u] = [{to, w}] with w >= 0 */
+function dijkstraSteps(n, adj, src) {
+  const dist = Array(n).fill(Infinity), prev = Array(n).fill(-1), done = Array(n).fill(false);
+  dist[src] = 0;
+  const steps = [{ u: -1, dist: dist.slice(), prev: prev.slice(), done: done.slice() }];
+  for (;;) {
+    let u = -1, b = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < b) { b = dist[i]; u = i; }
+    if (u < 0) break;
+    done[u] = true;
+    for (const e of adj[u]) {
+      if (!done[e.to] && dist[u] + e.w < dist[e.to]) { dist[e.to] = dist[u] + e.w; prev[e.to] = u; }
+    }
+    steps.push({ u, dist: dist.slice(), prev: prev.slice(), done: done.slice() });
+  }
+  return steps;
+}
+function pathTo(prev, dist, s, t) {
+  if (dist[t] === Infinity) return null;
+  const p = [];
+  for (let v = t; v !== -1; v = prev[v]) p.push(v);
+  p.reverse();
+  return p[0] === s ? p : null;
+}
+
+/* proper crossing of segments p1p2 and p3p4; returns the point or null */
+function segCross(p1, p2, p3, p4) {
+  const d = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    const t = d1 / (d1 - d2);
+    return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+  }
+  return null;
+}
+function distToSeg(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+/* Crossing points between edges, plus a mark at any node that an unrelated
+   edge runs through (within `clear` units), since that is not a valid drawing. */
+function crossings(nodes, edges, clear) {
+  const c = clear == null ? 24 : clear;
+  const pts = [];
+  for (let i = 0; i < edges.length; i++) {
+    for (let j = i + 1; j < edges.length; j++) {
+      const a = edges[i], b = edges[j];
+      if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
+      const p = segCross(nodes[a.from], nodes[a.to], nodes[b.from], nodes[b.to]);
+      if (p) pts.push(p);
+    }
+    const e = edges[i];
+    for (let k = 0; k < nodes.length; k++) {
+      if (k === e.from || k === e.to) continue;
+      if (distToSeg(nodes[k], nodes[e.from], nodes[e.to]) < c) pts.push({ x: nodes[k].x, y: nodes[k].y });
+    }
+  }
+  return pts;
+}
+
+/* random restarts + hill climbing to find a layout with few crossings */
+function autoArrange(n, edges, W, H, minD, tries) {
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const cl = (x, a, b) => Math.max(a, Math.min(b, x));
+  const ok = (nodes, i, p) => nodes.every((q, j) => j === i || Math.hypot(q.x - p.x, q.y - p.y) >= minD);
+  let best = null, bc = Infinity;
+  for (let t = 0; t < tries && bc > 0; t++) {
+    const nodes = [];
+    for (let i = 0; i < n; i++) {
+      let p, k = 0;
+      do { p = { x: rnd(40, W - 40), y: rnd(50, H - 50) }; k++; } while (!ok(nodes, i, p) && k < 60);
+      nodes.push(p);
+    }
+    let c = crossings(nodes, edges).length;
+    for (let k = 0; k < 300 && c > 0; k++) {
+      const i = Math.floor(Math.random() * n);
+      const old = nodes[i];
+      const p = { x: cl(old.x + rnd(-100, 100), 30, W - 30), y: cl(old.y + rnd(-100, 100), 40, H - 40) };
+      if (!ok(nodes, i, p)) continue;
+      nodes[i] = p;
+      const c2 = crossings(nodes, edges).length;
+      if (c2 <= c) c = c2; else nodes[i] = old;
+    }
+    if (c < bc) { bc = c; best = nodes.map(p => ({ x: p.x, y: p.y })); }
+  }
+  return { nodes: best, count: bc };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { outOf, inOf, scc, reach, bfsPath, prStep, prConverge, dijkstraSteps, pathTo, segCross, crossings, autoArrange };
+}
+'use strict';
+const W = 600, H = 420;
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const f3 = x => x.toFixed(3);
+const MK = ['def', 'out', 'in', 'hl', 'bad'];
+const acts = {}, chg = {}, inp = {};
+
+/* ---------- generic SVG graph renderer ---------- */
+function renderGraph(svg, g, o) {
+  const R = i => (o.r ? o.r(i) : 20);
+  const has = new Set(g.edges.map(e => e.from + '>' + e.to));
+  const ae = document.activeElement;
+  const focused = ae && svg.contains(ae) && ae.dataset ? ae.dataset.n : null;
+  let s = '<defs>' + MK.map(k =>
+    `<marker id="m-${svg.id}-${k}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0 0L10 5L0 10z" class="mk mk-${k}"/></marker>`
+  ).join('') + '</defs>';
+  let labels = '';
+  g.edges.forEach((e, i) => {
+    const a = g.nodes[e.from], b = g.nodes[e.to];
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+    const arrow = !e.undirected;
+    const curved = arrow && has.has(e.to + '>' + e.from);
+    const cls = o.edgeCls ? o.edgeCls(i) : 'def';
+    const ra = R(e.from), rb = R(e.to) + (arrow ? 2 : 0);
+    let d, lx, ly;
+    if (curved) {
+      const off = 26, cx = (a.x + b.x) / 2 + uy * off, cy = (a.y + b.y) / 2 - ux * off;
+      const sdx = cx - a.x, sdy = cy - a.y, sl = Math.hypot(sdx, sdy) || 1;
+      const edx = cx - b.x, edy = cy - b.y, el = Math.hypot(edx, edy) || 1;
+      const sx = a.x + sdx / sl * ra, sy = a.y + sdy / sl * ra, ex = b.x + edx / el * rb, ey = b.y + edy / el * rb;
+      d = `M${sx} ${sy}Q${cx} ${cy} ${ex} ${ey}`;
+      lx = .25 * sx + .5 * cx + .25 * ex; ly = .25 * sy + .5 * cy + .25 * ey;
+    } else {
+      const sx = a.x + ux * ra, sy = a.y + uy * ra, ex = b.x - ux * rb, ey = b.y - uy * rb;
+      d = `M${sx} ${sy}L${ex} ${ey}`; lx = (sx + ex) / 2; ly = (sy + ey) / 2;
+    }
+    const st = o.edgeStyle ? o.edgeStyle(i) : '';
+    s += `<path d="${d}" class="edge e-${cls}" ${arrow ? `marker-end="url(#m-${svg.id}-${cls})"` : ''} style="${st}"/>`;
+    s += `<path d="${d}" class="hit" data-e="${i}"/>`;
+    if (o.edgeLabel) {
+      const t = o.edgeLabel(i);
+      if (t != null && t !== '') labels += `<text x="${lx}" y="${ly}" class="elabel" text-anchor="middle" dominant-baseline="central">${esc(t)}</text>`;
+    }
+  });
+  s += labels;
+  if (o.overlay) s += o.overlay();
+  g.nodes.forEach((n, i) => {
+    const r = R(i);
+    const cls = o.nodeCls ? o.nodeCls(i) : '';
+    const fill = o.nodeFill ? o.nodeFill(i) : null;
+    const rings = cls.split(' ').filter(c => ['sel', 'pend', 'cur', 'src', 'dst', 'onpath'].includes(c))
+      .map(c => `<circle class="ring ring-${c}" r="${r + 5}"/>`).join('');
+    const shape = o.shape ? o.shape(i, r)
+      : `<circle class="body" r="${r}" ${fill ? `style="fill:${fill};stroke:${fill}"` : ''}/>`;
+    const fillLayer = (!o.shape && fill) ? `<circle r="${r}" style="fill:var(--surface)"/>` : '';
+    const inside = o.inside ? o.inside(i) : '';
+    const lp = o.labelPos ? o.labelPos(i) : 'below';
+    const ly = lp === 'above' ? -(r + 9) : r + 17;
+    s += `<g class="node ${cls}" data-n="${i}" transform="translate(${n.x} ${n.y})" tabindex="0" role="button" aria-label="${esc(n.label)}">` +
+      `${rings}${fillLayer}${fill ? shape.replace('class="body"', 'class="body" fill-opacity=".28"') : shape}` +
+      `${inside !== '' ? `<text class="ntext">${esc(inside)}</text>` : ''}<text class="nlabel" y="${ly}">${esc(n.label)}</text></g>`;
+  });
+  svg.innerHTML = s;
+  if (focused != null) { const el = svg.querySelector(`[data-n="${focused}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+
+function enableDrag(svg, getG, rerender, onNode, onEdge) {
+  let drag = null;
+  const pt = ev => new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
+  svg.addEventListener('pointerdown', ev => {
+    const n = ev.target.closest('[data-n]');
+    if (!n) return;
+    const i = +n.dataset.n, p = pt(ev), node = getG().nodes[i];
+    drag = { i, sx: p.x, sy: p.y, ox: node.x, oy: node.y, moved: false };
+    try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+  });
+  svg.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    const p = pt(ev), dx = p.x - drag.sx, dy = p.y - drag.sy;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    const node = getG().nodes[drag.i];
+    node.x = clamp(drag.ox + dx, 24, W - 24);
+    node.y = clamp(drag.oy + dy, 26, H - 30);
+    rerender();
+  });
+  const end = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (!d.moved) onNode(d.i);
+  };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', () => { drag = null; });
+  svg.addEventListener('click', ev => {
+    const e = ev.target.closest('[data-e]');
+    if (e && onEdge) onEdge(+e.dataset.e);
+  });
+  svg.addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    const n = ev.target.closest && ev.target.closest('[data-n]');
+    if (n) { ev.preventDefault(); onNode(+n.dataset.n); }
+  });
+}
+
+/* =====================================================
+   1. SOCIAL NETWORK
+   ===================================================== */
+const SOC_NODES = [['Aarav', 110, 110], ['Isha', 70, 262], ['Rohan', 240, 170], ['Sneha', 210, 330],
+  ['Kabir', 530, 330], ['Meera', 400, 225], ['Dev', 520, 100], ['Tara', 390, 70]];
+const SOC_EDGES = [[0, 1], [1, 0], [0, 2], [2, 3], [3, 0], [1, 5], [2, 5], [3, 5], [4, 5], [5, 4], [6, 5], [6, 7], [7, 6], [7, 5]];
+const soc = { g: null, sel: 0, mode: 'explore', pending: null, target: 4, scc: true };
+function socReset() {
+  soc.g = {
+    nodes: SOC_NODES.map(([label, x, y]) => ({ label, x, y })),
+    edges: SOC_EDGES.map(([from, to]) => ({ from, to }))
+  };
+  soc.sel = 0; soc.pending = null; soc.target = 4; soc.mode = 'explore';
+}
+function socClick(i) {
+  if (soc.mode === 'edit') {
+    if (soc.pending === null) soc.pending = i;
+    else if (soc.pending === i) soc.pending = null;
+    else {
+      const k = soc.g.edges.findIndex(e => e.from === soc.pending && e.to === i);
+      if (k >= 0) soc.g.edges.splice(k, 1); else soc.g.edges.push({ from: soc.pending, to: i });
+      soc.pending = null;
+    }
+  } else soc.sel = i;
+  socRender();
+}
+function socRender() {
+  const g = soc.g, n = g.nodes.length, out = outOf(n, g.edges), inn = inOf(n, g.edges);
+  const { comp, count } = scc(n, out);
+  const pr = prConverge(n, out, 0.85).pr;
+  const sel = soc.sel, nm = i => g.nodes[i].label;
+  if (soc.target === sel || soc.target == null) soc.target = sel === 0 ? 1 : 0;
+  const path = bfsPath(n, out, sel, soc.target);
+  const pathNodes = new Set(path || []), pathEdges = new Set();
+  if (path) for (let i = 0; i < path.length - 1; i++) pathEdges.add(path[i] + '>' + path[i + 1]);
+
+  renderGraph($('#soc-svg'), g, {
+    r: i => 15 + inn[i].length * 2.2,
+    nodeCls: i => (i === sel ? 'sel ' : '') + (soc.pending === i ? 'pend ' : '') + (pathNodes.has(i) && i !== sel ? 'onpath' : ''),
+    nodeFill: i => (soc.scc ? `var(--c${comp[i] % 6 + 1})` : null),
+    edgeCls: i => {
+      const e = g.edges[i];
+      if (pathEdges.has(e.from + '>' + e.to)) return 'hl';
+      if (e.from === sel) return 'out';
+      if (e.to === sel) return 'in';
+      return 'def';
+    },
+    inside: i => String(inn[i].length)
+  });
+  document.querySelectorAll('[data-act="soc-mode"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === soc.mode)));
+  $('#soc-scc').checked = soc.scc;
+  $('#soc-hint').textContent = soc.mode === 'edit'
+    ? (soc.pending === null ? 'Edit mode: pick the user who follows, then the user they follow. Repeat the pair to unfollow.'
+      : `Now pick who ${nm(soc.pending)} follows (or unfollows). Pick ${nm(soc.pending)} again to cancel.`)
+    : 'The number in each circle is that user’s follower count. Blue edges leave the selected user, amber edges arrive, green is the path to the target.';
+
+  const chips = arr => arr.length
+    ? arr.map(i => `<button class="chip" data-act="pick" data-i="${i}">${esc(nm(i))}</button>`).join('')
+    : '<span class="none">nobody</span>';
+  const mutual = out[sel].filter(j => inn[sel].includes(j));
+  const cnt = new Map();
+  out[sel].forEach(w => out[w].forEach(v => {
+    if (v === sel || out[sel].includes(v)) return;
+    if (!cnt.has(v)) cnt.set(v, []);
+    cnt.get(v).push(w);
+  }));
+  const sug = [...cnt.entries()].sort((a, b) => b[1].length - a[1].length);
+  const opts = g.nodes.map((nd, i) => i === sel ? '' :
+    `<option value="${i}" ${i === soc.target ? 'selected' : ''}>${esc(nd.label)}</option>`).join('');
+  $('#soc-side').innerHTML = `
+    <div class="sec"><h4>Selected user</h4><h3 class="who">${esc(nm(sel))}</h3>
+      <div class="stats3"><div><b>${inn[sel].length}</b><span>followers</span></div><div><b>${out[sel].length}</b><span>following</span></div><div><b>${mutual.length}</b><span>friends</span></div></div></div>
+    <div class="sec"><h4>Follows</h4><div class="chips">${chips(out[sel])}</div></div>
+    <div class="sec"><h4>Followed by</h4><div class="chips">${chips(inn[sel])}</div></div>
+    <div class="sec"><h4>Friends <small>(follow each other)</small></h4><div class="chips">${chips(mutual)}</div></div>
+    <div class="sec"><h4>People you may know</h4>${sug.length
+      ? `<ul class="sug">${sug.map(([v, via]) => `<li><button class="chip" data-act="pick" data-i="${v}">${esc(nm(v))}</button><span>followed by ${via.length} of ${esc(nm(sel))}’s follows (${via.map(w => esc(nm(w))).join(', ')})</span></li>`).join('')}</ul>`
+      : '<p class="none">Nobody new is reachable in two steps.</p>'}</div>
+    <div class="sec"><h4>Degrees of separation</h4>
+      <label for="soc-target" class="none">From ${esc(nm(sel))} to </label><select id="soc-target" data-chg="soc-target">${opts}</select>
+      <p class="pathline">${path
+        ? `<b>${path.map(i => esc(nm(i))).join(' → ')}</b><br>${path.length - 1} follow${path.length - 1 === 1 ? '' : 's'} away`
+        : `No directed path. ${esc(nm(sel))} can never reach ${esc(nm(soc.target))} by following accounts.`}</p></div>`;
+
+  const total = g.edges.length;
+  const mutualPairs = g.edges.filter(e => e.from < e.to && out[e.to].includes(e.from)).length;
+  const order = pr.map((v, i) => i).sort((a, b) => pr[b] - pr[a]);
+  const ab = i => nm(i).slice(0, 3);
+  $('#soc-lower').innerHTML = `
+    <div><h3>Network summary</h3>
+      <div class="kv">
+        <div><span class="big">${n}</span><span>vertices |V|</span></div>
+        <div><span class="big">${total}</span><span>edges |E|</span></div>
+        <div><span class="big">${mutualPairs}</span><span>mutual pairs (friends)</span></div>
+        <div><span class="big">${count}</span><span>strongly connected components</span></div>
+      </div>
+      <p style="margin-top:12px">Handshaking property for digraphs: the in-degrees sum to ${inn.reduce((a, l) => a + l.length, 0)}, the out-degrees sum to ${out.reduce((a, l) => a + l.length, 0)}, and |E| is ${total}.</p>
+    </div>
+    <div><h3>Influence ranking</h3>
+      <div class="scroll"><table class="tbl"><thead><tr><th>User</th><th class="r">In</th><th class="r">Out</th><th class="r">PageRank</th></tr></thead><tbody>
+      ${order.map(i => `<tr><td>${esc(nm(i))}</td><td class="r">${inn[i].length}</td><td class="r">${out[i].length}</td><td class="r">${f3(pr[i])}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p style="margin-top:10px">In-degree counts followers. PageRank also rewards being followed by well-followed users.</p>
+    </div>
+    <div><h3>Adjacency matrix</h3>
+      <div class="scroll"><table class="mx"><thead><tr><th></th>${g.nodes.map((nd, i) => `<th>${esc(ab(i))}</th>`).join('')}</tr></thead><tbody>
+      ${g.nodes.map((nd, i) => `<tr class="${i === sel ? 'sel' : ''}"><th>${esc(ab(i))}</th>${g.nodes.map((x, j) => `<td class="${out[i].includes(j) ? 'on' : ''}">${out[i].includes(j) ? 1 : 0}</td>`).join('')}</tr>`).join('')}
+      </tbody></table></div>
+      <p style="margin-top:10px">Row = follower, column = followed. Squaring the matrix counts walks of length 2, which is how “people you may know” is found.</p>
+    </div>`;
+}
+acts['soc-mode'] = b => { soc.mode = b.dataset.m; soc.pending = null; socRender(); };
+acts['soc-reset'] = () => { socReset(); socRender(); };
+acts['pick'] = b => { soc.sel = +b.dataset.i; socRender(); };
+chg['soc-scc'] = el => { soc.scc = el.checked; socRender(); };
+chg['soc-target'] = el => { soc.target = +el.value; socRender(); };
+
+/* =====================================================
+   2. THREE UTILITIES
+   ===================================================== */
+const utNodes = () => [
+  { label: 'House 1', x: 130, y: 95 }, { label: 'House 2', x: 300, y: 95 }, { label: 'House 3', x: 470, y: 95 },
+  { label: 'Water', x: 130, y: 330 }, { label: 'Gas', x: 300, y: 330 }, { label: 'Electricity', x: 470, y: 330 }];
+const ut = { g: null, pending: null, auto: null };
+function utAllEdges() {
+  const e = [];
+  for (let h = 0; h < 3; h++) for (let u = 3; u < 6; u++) e.push({ from: h, to: u, undirected: true });
+  return e;
+}
+function utReset() { ut.g = { nodes: utNodes(), edges: utAllEdges() }; ut.pending = null; ut.auto = null; }
+function utToggle(h, u) {
+  const k = ut.g.edges.findIndex(e => e.from === h && e.to === u);
+  if (k >= 0) ut.g.edges.splice(k, 1); else ut.g.edges.push({ from: h, to: u, undirected: true });
+}
+function utClick(i) {
+  if (ut.pending === null) ut.pending = i;
+  else if (ut.pending === i) ut.pending = null;
+  else {
+    const a = ut.pending, b = i;
+    if ((a < 3) !== (b < 3)) { utToggle(Math.min(a, b), Math.max(a, b)); ut.pending = null; }
+    else ut.pending = i;
+  }
+  ut.auto = null;
+  utRender();
+}
+function utRender() {
+  const g = ut.g, pts = crossings(g.nodes, g.edges), c = pts.length, E = g.edges.length;
+  renderGraph($('#ut-svg'), g, {
+    r: i => (i < 3 ? 19 : 20),
+    nodeCls: i => (ut.pending === i ? 'pend' : ''),
+    edgeCls: () => 'def',
+    edgeStyle: i => `stroke:var(--c${g.edges[i].to - 2});stroke-width:3`,
+    labelPos: i => (i < 3 ? 'above' : 'below'),
+    shape: (i, r) => i < 3
+      ? '<path class="body" d="M-17 14V-3L0 -18L17 -3V14Z"/>'
+      : `<circle class="body" r="${r}"/>`,
+    inside: i => (i < 3 ? '' : g.nodes[i].label[0]),
+    overlay: () => pts.map(p => `<g class="xmark" transform="translate(${p.x} ${p.y})"><circle r="8"/><path d="M-4 -4L4 4M4 -4L-4 4"/></g>`).join('')
+  });
+  let msg;
+  if (E === 0) msg = 'Nothing is connected yet. Click a house, then a utility.';
+  else if (c === 0) msg = E === 9 ? 'No crossings.' : `No crossings. This layout works for the ${E} lines you have.`;
+  else if (E === 9) msg = `${c} crossing${c > 1 ? 's' : ''}. With all nine lines, one crossing is the best any drawing can do.`;
+  else msg = `${c} crossing${c > 1 ? 's' : ''}. Drag nodes to remove ${c > 1 ? 'them' : 'it'}, or press Auto-arrange.`;
+  const bound = 2 * 6 - 4;
+  const verdict = E > bound
+    ? `<span class="bad">E = ${E} is more than ${bound}, so no layout can avoid crossings.</span>`
+    : `<span class="good">E = ${E} is within ${bound}, so a crossing-free layout may exist.</span>`;
+  $('#ut-side').innerHTML = `
+    <div class="sec"><h4>Crossings now</h4><div class="big ${c === 0 && E > 0 ? 'good' : c > 0 ? 'bad' : ''}">${c}</div>
+      <p style="margin-top:10px">${esc(msg)}</p>
+      ${ut.auto != null ? `<p class="none" style="margin-top:6px">Auto-arrange tried many random layouts and the best it found has ${ut.auto} crossing${ut.auto === 1 ? '' : 's'}.</p>` : ''}</div>
+    <div class="sec"><h4>Connections</h4><div class="kv">
+      <div><span class="big">${E}</span><span>of 9 lines laid</span></div>
+      <div><span class="big">6</span><span>vertices (3 houses, 3 utilities)</span></div></div></div>
+    <div class="sec"><h4>Planarity bound</h4>
+      <p>A planar bipartite graph with V vertices has at most 2V − 4 edges. For V = 6 that is ${bound}.</p>
+      <p style="margin-top:6px">${verdict}</p></div>
+    <div class="sec"><h4>Try this</h4><p>Press <b>Drop one line</b>. With eight lines the puzzle becomes solvable: drag nodes, or press Auto-arrange, until the crossing count reaches 0.</p></div>`;
+  $('#ut-lower').innerHTML = `
+    <div><h3>Why nine lines cannot work</h3>
+      <ol>
+        <li>Suppose K<sub>3,3</sub> could be drawn with no crossings. It has V = 6 vertices and E = 9 edges.</li>
+        <li>Euler’s formula for a connected planar graph is V − E + F = 2, so F = 2 − 6 + 9 = 5 faces.</li>
+        <li>K<sub>3,3</sub> is bipartite, so it has no odd cycles and no triangles. Every face is bounded by at least 4 edges.</li>
+        <li>Each edge borders at most two faces, so 2E ≥ 4F. That reads 18 ≥ 20, which is false.</li>
+        <li>So the drawing cannot exist. The three utilities problem has no solution on a flat surface.</li>
+      </ol></div>
+    <div><h3>The general rule</h3>
+      <p>Kuratowski’s theorem: a graph is planar exactly when it contains no subdivision of K<sub>5</sub> or K<sub>3,3</sub>. These two graphs are the smallest obstacles to planarity.</p>
+      <p>The fewest crossings K<sub>3,3</sub> can have is called its crossing number, and it equals 1. The red marks on the drawing count exactly those crossings.</p>
+      <p>Planarity matters in practice: a circuit board is flat, so crossing wires need an extra layer.</p></div>`;
+}
+acts['ut-all'] = () => { ut.g.edges = utAllEdges(); ut.pending = null; ut.auto = null; utRender(); };
+acts['ut-drop'] = () => { ut.g.edges = utAllEdges().filter(e => !(e.from === 0 && e.to === 5)); ut.pending = null; ut.auto = null; utRender(); };
+acts['ut-clear'] = () => { ut.g.edges = []; ut.pending = null; ut.auto = null; utRender(); };
+acts['ut-layout'] = () => { ut.g.nodes = utNodes(); ut.pending = null; ut.auto = null; utRender(); };
+acts['ut-auto'] = () => {
+  if (!ut.g.edges.length) return;
+  const r = autoArrange(6, ut.g.edges, W, H, 70, 150);
+  if (r.nodes) { r.nodes.forEach((p, i) => { ut.g.nodes[i].x = p.x; ut.g.nodes[i].y = p.y; }); ut.auto = r.count; }
+  ut.pending = null; utRender();
+};
+
+/* =====================================================
+   3. WEB GRAPH + PAGERANK
+   ===================================================== */
+const WEB_NODES = [['Home', 300, 205], ['Blog', 130, 115], ['Docs', 320, 62], ['Pricing', 480, 105], ['About', 510, 250],
+  ['Forum', 250, 345], ['News', 62, 270], ['Archive', 450, 350]];
+const WEB_EDGES = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 2], [1, 7], [2, 0], [2, 5], [3, 0], [4, 0], [4, 3],
+  [5, 2], [5, 0], [5, 1], [6, 1], [6, 0], [6, 7]];
+const web = { g: null, d: 0.85, pr: null, iter: 0, delta: 0, sel: 0, mode: 'select', pending: null };
+function webOut() { return outOf(web.g.nodes.length, web.g.edges); }
+function webConverge() {
+  const r = prConverge(web.g.nodes.length, webOut(), web.d);
+  web.pr = r.pr; web.iter = r.iter; web.delta = r.delta;
+}
+function webReset() {
+  web.g = { nodes: WEB_NODES.map(([label, x, y]) => ({ label, x, y })), edges: WEB_EDGES.map(([from, to]) => ({ from, to })) };
+  web.sel = 0; web.pending = null; web.mode = 'select'; web.d = 0.85;
+  $('#web-d').value = '0.85'; $('#web-dv').textContent = '0.85';
+  webConverge();
+}
+function webClick(i) {
+  if (web.mode === 'edit') {
+    if (web.pending === null) web.pending = i;
+    else if (web.pending === i) web.pending = null;
+    else {
+      const k = web.g.edges.findIndex(e => e.from === web.pending && e.to === i);
+      if (k >= 0) web.g.edges.splice(k, 1); else web.g.edges.push({ from: web.pending, to: i });
+      web.pending = null; webConverge();
+    }
+  } else web.sel = i;
+  webRender();
+}
+function webRender() {
+  const g = web.g, n = g.nodes.length, out = webOut(), inn = inOf(n, g.edges), pr = web.pr, d = web.d;
+  const nm = i => g.nodes[i].label, sel = web.sel;
+  const { comp } = scc(n, out);
+  const size = {}; comp.forEach(c => { size[c] = (size[c] || 0) + 1; });
+  let coreId = -1, best = 0; Object.keys(size).forEach(c => { if (size[c] > best) { best = size[c]; coreId = +c; } });
+  const coreNodes = comp.map((c, i) => (c === coreId ? i : -1)).filter(i => i >= 0);
+  const canReachCore = reach(n, inn.map(l => l.slice()), coreNodes);
+  const fromCore = reach(n, out, coreNodes);
+  const tag = i => (comp[i] === coreId ? 'core' : canReachCore[i] ? 'IN' : fromCore[i] ? 'OUT' : 'other');
+  const maxPr = Math.max(...pr);
+
+  renderGraph($('#web-svg'), g, {
+    r: i => 15 + pr[i] * 60,
+    nodeCls: i => (i === sel ? 'sel ' : '') + (web.pending === i ? 'pend' : ''),
+    nodeFill: i => (out[i].length === 0 ? 'var(--warn)' : null),
+    edgeCls: i => { const e = g.edges[i]; return e.from === sel ? 'out' : e.to === sel ? 'in' : 'def'; },
+    inside: i => String(Math.round(pr[i] * 100))
+  });
+  document.querySelectorAll('[data-act="web-mode"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === web.mode)));
+  $('#web-hint').textContent = web.mode === 'edit'
+    ? (web.pending === null ? 'Edit mode: pick the page that holds the link, then the page it points to. Repeat the pair to remove the link.'
+      : `Now pick the page that ${nm(web.pending)} links to (or stops linking to).`)
+    : 'Circle size and the number inside show PageRank × 100. An amber fill marks a page with no out-links.';
+
+  const order = pr.map((v, i) => i).sort((a, b) => pr[b] - pr[a]);
+  const base = (1 - d) / n;
+  const dangSum = out.reduce((a, l, i) => a + (l.length === 0 ? pr[i] : 0), 0);
+  const rows = inn[sel].map(q => `<tr><td>${esc(nm(q))}</td><td class="r">${f3(pr[q])} ÷ ${out[q].length}</td><td class="r">${f3(d * pr[q] / out[q].length)}</td></tr>`).join('');
+  const dangTerm = d * dangSum / n, linkSum = inn[sel].reduce((a, q) => a + d * pr[q] / out[q].length, 0);
+  $('#web-side').innerHTML = `
+    <div class="sec"><h4>Iteration</h4>
+      <div class="kv"><div><span class="big">${web.iter}</span><span>iterations run</span></div>
+      <div><span class="big" style="font-size:26px">${web.delta < 1e-9 ? '≈ 0' : web.delta.toExponential(1)}</span><span>total change last step</span></div></div></div>
+    <div class="sec"><h4>Ranking</h4><ol class="rank" style="list-style:none">
+      ${order.map(i => `<li><span>${esc(nm(i))}</span><span class="bar"><i style="width:${(pr[i] / maxPr * 100).toFixed(1)}%"></i></span><span class="rv">${f3(pr[i])}</span><span class="tg">${tag(i)}</span></li>`).join('')}
+    </ol></div>
+    <div class="sec"><h4>Where ${esc(nm(sel))} gets its rank</h4>
+      <div class="scroll"><table class="tbl"><thead><tr><th>Source</th><th class="r">PR ÷ links</th><th class="r">× d</th></tr></thead><tbody>
+      ${rows || '<tr><td colspan="3">No page links here.</td></tr>'}
+      <tr><td>Random jump</td><td class="r">(1−d) ÷ N</td><td class="r">${f3(base)}</td></tr>
+      ${dangSum > 0 ? `<tr><td>Dead-end share</td><td class="r">${f3(dangSum)} ÷ N</td><td class="r">${f3(dangTerm)}</td></tr>` : ''}
+      <tr class="tot"><td>Next value</td><td></td><td class="r">${f3(base + linkSum + dangTerm)}</td></tr>
+      </tbody></table></div></div>`;
+  $('#web-lower').innerHTML = `
+    <div><h3>The PageRank formula</h3>
+      <p class="formula">PR(p) = (1 − d) / N + d · Σ PR(q) / L(q)</p>
+      <p>The sum runs over every page q that links to p. L(q) is the number of links on q, N is the number of pages (${n}) and d is the damping factor, the chance a surfer follows a link instead of jumping to a random page. Try d = 0.5 and d = 0.95 and compare the ranking.</p>
+      <p>A page with no out-links, like Archive, would trap the surfer. Its rank is shared evenly with all pages on each step.</p></div>
+    <div><h3>Bow-tie structure</h3>
+      <p>The tags in the ranking come from strongly connected components. The <b>core</b> is the largest one, where every page can reach every other. <b>IN</b> pages reach the core but nothing links back to them. <b>OUT</b> pages can be reached from the core but link nowhere useful.</p>
+      <p>Search engines crawl this graph with breadth-first search, following out-links from known pages.</p></div>`;
+}
+acts['web-step'] = () => {
+  const nx = prStep(web.g.nodes.length, webOut(), web.pr, web.d);
+  web.delta = nx.reduce((a, v, i) => a + Math.abs(v - web.pr[i]), 0);
+  web.pr = nx; web.iter++; webRender();
+};
+acts['web-run'] = () => {
+  const n = web.g.nodes.length, out = webOut();
+  let it = 0;
+  while (it < 500) {
+    const nx = prStep(n, out, web.pr, web.d);
+    web.delta = nx.reduce((a, v, i) => a + Math.abs(v - web.pr[i]), 0);
+    web.pr = nx; web.iter++; it++;
+    if (web.delta < 1e-10) break;
+  }
+  webRender();
+};
+acts['web-restart'] = () => { const n = web.g.nodes.length; web.pr = Array(n).fill(1 / n); web.iter = 0; web.delta = 1; webRender(); };
+acts['web-mode'] = b => { web.mode = b.dataset.m; web.pending = null; webRender(); };
+acts['web-reset'] = () => { webReset(); webRender(); };
+inp['web-d'] = el => { web.d = +el.value; $('#web-dv').textContent = (+el.value).toFixed(2); webConverge(); webRender(); };
+
+/* =====================================================
+   4. ROUTE FINDER (DIJKSTRA)
+   ===================================================== */
+const MP_NODES = [['Hinjewadi', 62, 85], ['Kothrud', 150, 205], ['Shivajinagar', 275, 125], ['Pune Stn', 355, 215],
+  ['Koregaon Pk', 455, 150], ['Viman Nagar', 540, 70], ['Swargate', 300, 310], ['Hadapsar', 480, 290], ['Trinity College', 395, 380]];
+const MP_ROADS = [
+  { a: 0, b: 1, km: 12, min: 45 }, { a: 0, b: 2, km: 14, min: 40 }, { a: 1, b: 2, km: 6, min: 20 },
+  { a: 1, b: 6, km: 9, min: 30 }, { a: 2, b: 3, km: 4, min: 15 }, { a: 2, b: 4, km: 6, min: 22 },
+  { a: 3, b: 6, km: 4, min: 15 }, { a: 3, b: 4, km: 3, min: 12, one: true }, { a: 4, b: 5, km: 5, min: 18 },
+  { a: 4, b: 7, km: 8, min: 28 }, { a: 5, b: 7, km: 11, min: 35 }, { a: 6, b: 7, km: 10, min: 30 },
+  { a: 6, b: 8, km: 11, min: 35 }, { a: 7, b: 8, km: 9, min: 28 }];
+const mp = { g: null, from: 8, to: 0, metric: 'km', blocked: new Set(), steps: [], k: 0 };
+function mpInit() {
+  mp.g = { nodes: MP_NODES.map(([label, x, y]) => ({ label, x, y })), edges: MP_ROADS.map(r => ({ from: r.a, to: r.b, undirected: !r.one })) };
+  mp.blocked = new Set(); mp.from = 8; mp.to = 0; mp.metric = 'km';
+  mpCompute(true);
+}
+function mpAdj(metric) {
+  const adj = Array.from({ length: MP_NODES.length }, () => []);
+  MP_ROADS.forEach((r, i) => {
+    if (mp.blocked.has(i)) return;
+    adj[r.a].push({ to: r.b, w: r[metric], id: i });
+    if (!r.one) adj[r.b].push({ to: r.a, w: r[metric], id: i });
+  });
+  return adj;
+}
+function mpFinal(metric) {
+  const st = dijkstraSteps(MP_NODES.length, mpAdj(metric), mp.from);
+  const last = st[st.length - 1];
+  return { dist: last.dist[mp.to], path: pathTo(last.prev, last.dist, mp.from, mp.to) };
+}
+function mpCompute(toEnd) {
+  mp.steps = dijkstraSteps(MP_NODES.length, mpAdj(mp.metric), mp.from);
+  mp.k = toEnd ? mp.steps.length - 1 : Math.min(mp.k, mp.steps.length - 1);
+}
+function mpClick(i) {
+  /* clicking a place sets the destination; clicking the destination again sets the start */
+  if (i === mp.to) { const t = mp.from; mp.from = mp.to; mp.to = t; }
+  else if (i === mp.from) return;
+  else mp.to = i;
+  mpCompute(true); mpRender();
+}
+function mpRender() {
+  const g = mp.g, n = g.nodes.length, nm = i => g.nodes[i].label;
+  const st = mp.steps[mp.k], last = mp.k === mp.steps.length - 1;
+  const key = new Map();
+  MP_ROADS.forEach((r, i) => { if (mp.blocked.has(i)) return; key.set(r.a + '>' + r.b, i); if (!r.one) key.set(r.b + '>' + r.a, i); });
+  const path = st.done[mp.to] ? pathTo(st.prev, st.dist, mp.from, mp.to) : null;
+  const pathRoads = new Set();
+  if (path) for (let i = 0; i < path.length - 1; i++) pathRoads.add(key.get(path[i] + '>' + path[i + 1]));
+  const tree = new Set();
+  for (let v = 0; v < n; v++) if (st.done[v] && st.prev[v] >= 0) tree.add(key.get(st.prev[v] + '>' + v));
+  const unit = mp.metric === 'km' ? 'km' : 'min';
+
+  renderGraph($('#mp-svg'), g, {
+    r: () => 13,
+    nodeCls: i => (i === mp.from ? 'src ' : '') + (i === mp.to ? 'dst ' : '') + (i === st.u ? 'cur' : ''),
+    nodeFill: i => (st.done[i] ? 'var(--accent)' : null),
+    edgeCls: i => (mp.blocked.has(i) ? 'bad' : pathRoads.has(i) ? 'hl' : tree.has(i) ? 'out' : 'def'),
+    edgeLabel: i => (mp.blocked.has(i) ? 'closed' : MP_ROADS[i][mp.metric]),
+    labelPos: () => 'below'
+  });
+  document.querySelectorAll('[data-act="mp-metric"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === mp.metric)));
+
+  const fin = { km: mpFinal('km'), min: mpFinal('min') };
+  const pp = r => (r.path ? r.path.map(i => esc(nm(i))).join(' → ') : null);
+  const same = fin.km.path && fin.min.path && fin.km.path.join() === fin.min.path.join();
+  const opt = i => `<option value="${i}">${esc(nm(i))}</option>`;
+  const sel = (id, v) => `<select id="${id}" data-chg="${id}">${g.nodes.map((x, i) => opt(i).replace(`value="${i}"`, `value="${i}"${i === v ? ' selected' : ''}`)).join('')}</select>`;
+  const desc = st.u < 0 ? `Start: ${esc(nm(mp.from))} has distance 0, every other place is ∞.`
+    : `Settled ${esc(nm(st.u))} at ${st.dist[st.u]} ${unit}, then relaxed the roads leaving it.`;
+  $('#mp-side').innerHTML = `
+    <div class="sec"><h4>Route</h4>
+      <div class="chips" style="gap:10px"><label for="mp-from" class="none">From</label>${sel('mp-from', mp.from)}<label for="mp-to" class="none">to</label>${sel('mp-to', mp.to)}</div>
+      <p class="none" style="margin-top:8px">You can also click a place on the map to set the destination.</p></div>
+    <div class="sec"><h4>Result</h4>
+      ${fin.km.path ? `
+        <p class="pathline"><b>Shortest distance: ${fin.km.dist} km</b><br>${pp(fin.km)}</p>
+        <p class="pathline"><b>Fastest: ${fin.min.dist} min</b><br>${pp(fin.min)}</p>
+        <p class="none" style="margin-top:8px">${same ? 'The same route wins on both measures.' : 'The shortest route is not the fastest route.'}</p>`
+        : `<p class="pathline"><b class="bad">No route.</b> ${esc(nm(mp.from))} cannot reach ${esc(nm(mp.to))} with the current roads.</p>`}</div>
+    <div class="sec"><h4>Dijkstra, step ${mp.k} of ${mp.steps.length - 1}</h4>
+      <p class="note">${desc}</p>
+      <div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Place</th><th class="r">${unit}</th><th>via</th><th>state</th></tr></thead><tbody>
+      ${g.nodes.map((nd, i) => `<tr class="${i === st.u ? 'cur ' : ''}${st.done[i] ? 'done' : ''}"><td>${esc(nd.label)}</td><td class="r">${st.dist[i] === Infinity ? '∞' : st.dist[i]}</td><td>${st.prev[i] >= 0 ? esc(nm(st.prev[i])) : '–'}</td><td>${st.done[i] ? 'settled' : st.dist[i] < Infinity ? 'frontier' : 'unseen'}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
+  $('#mp-lower').innerHTML = `
+    <div><h3>How the algorithm works</h3>
+      <ol>
+        <li>Give the start distance 0 and every other place ∞.</li>
+        <li>Settle the unsettled place with the smallest distance. That distance is now final.</li>
+        <li>For each road leaving it, check whether going through it gives a neighbour a smaller distance. If so, update the distance and remember the road.</li>
+        <li>Repeat until the destination is settled, then follow the “via” column backwards to read off the route.</li>
+      </ol></div>
+    <div><h3>From this toy map to a real one</h3>
+      <p>Dijkstra needs non-negative weights, which distances and times always satisfy. A one-way street is a single directed edge, which is why Koregaon Pk → Pune Stn takes a detour while the reverse does not.</p>
+      <p>Production systems speed this up with A*, which steers the search toward the goal using straight-line distance, and with contraction hierarchies that precompute shortcuts. Delivery routes need harder problems such as the travelling salesman problem.</p></div>`;
+}
+acts['mp-metric'] = b => { mp.metric = b.dataset.m; mpCompute(true); mpRender(); };
+acts['mp-step'] = () => { mp.k = Math.min(mp.k + 1, mp.steps.length - 1); mpRender(); };
+acts['mp-back'] = () => { mp.k = Math.max(mp.k - 1, 0); mpRender(); };
+acts['mp-all'] = () => { mp.k = mp.steps.length - 1; mpRender(); };
+acts['mp-restart'] = () => { mp.k = 0; mpRender(); };
+acts['mp-open'] = () => { mp.blocked = new Set(); mpCompute(true); mpRender(); };
+chg['mp-from'] = el => { const v = +el.value; if (v === mp.to) mp.to = mp.from; mp.from = v; mpCompute(true); mpRender(); };
+chg['mp-to'] = el => { const v = +el.value; if (v === mp.from) mp.from = mp.to; mp.to = v; mpCompute(true); mpRender(); };
+
+/* ---------- wiring ---------- */
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && acts[b.dataset.act]) acts[b.dataset.act](b, e); });
+document.addEventListener('change', e => { const b = e.target.closest('[data-chg]'); if (b && chg[b.dataset.chg]) chg[b.dataset.chg](b, e); });
+document.addEventListener('input', e => { const b = e.target.closest('[data-inp]'); if (b && inp[b.dataset.inp]) inp[b.dataset.inp](b, e); });
+
+socReset(); utReset(); webReset(); mpInit();
+enableDrag($('#soc-svg'), () => soc.g, socRender, socClick);
+enableDrag($('#ut-svg'), () => ut.g, () => { ut.auto = null; utRender(); }, utClick, i => { ut.g.edges.splice(i, 1); ut.auto = null; utRender(); });
+enableDrag($('#web-svg'), () => web.g, webRender, webClick);
+enableDrag($('#mp-svg'), () => mp.g, mpRender, mpClick, i => { if (mp.blocked.has(i)) mp.blocked.delete(i); else mp.blocked.add(i); mpCompute(true); mpRender(); });
+
+const TABS = ['social', 'utilities', 'web', 'maps'];
+function showTab(id) {
+  TABS.forEach(t => {
+    $('#tab-' + t).hidden = t !== id;
+    $('#tb-' + t).setAttribute('aria-selected', String(t === id));
+  });
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+socRender(); utRender(); webRender(); mpRender();
+let start = 'social';
+try { const h = location.hash.slice(1); if (TABS.includes(h)) start = h; } catch (e) { /* ignore */ }
+showTab(start);
+
+</script>
+</body>
+</html>
